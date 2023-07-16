@@ -7,19 +7,19 @@ import _debounce from 'lodash/debounce';
 const input = document.querySelector('.search-form-input');
 const gallery = document.querySelector('.gallery');
 const btnSearch = document.querySelector('.search-form-button');
-const btnLoadMore = document.querySelector('.load-more');
 
 let gallerySimpleLightbox = new SimpleLightbox('.gallery a');
-btnLoadMore.style.display = 'none';
 
 let pageNumber = 1;
-
+let loadedImageIds = new Set();
 btnSearch.addEventListener('click', async event => {
   event.preventDefault();
   cleanGallery();
   const trimmedValue = input.value.trim();
   if (trimmedValue !== '') {
     try {
+      pageNumber = 1;
+      loadedImageIds.clear();
       const foundData = await fetchImages(trimmedValue, pageNumber);
       if (foundData.hits.length === 0) {
         Notiflix.Notify.failure('Something went wrong :( Try again.');
@@ -28,8 +28,8 @@ btnSearch.addEventListener('click', async event => {
         Notiflix.Notify.success(
           `Great! We found ${foundData.totalHits} images for you. Enjoy ;)`
         );
-        btnLoadMore.style.display = 'block';
         gallerySimpleLightbox.refresh();
+        pageNumber++;
       }
     } catch (error) {
       Notiflix.Notify.failure('Something went wrong :( Try again.');
@@ -47,13 +47,15 @@ const handleScroll = _debounce(async () => {
         Notiflix.Notify.failure(
           "We're sorry, but you've reached the end of search results."
         );
-        btnLoadMore.style.display = 'none';
       } else {
-        renderImageList(foundData.hits);
+        const uniqueImages = foundData.hits.filter(
+          image => !loadedImageIds.has(image.id)
+        );
+        renderImageList(uniqueImages);
         Notiflix.Notify.success();
-        btnLoadMore.style.display = 'block';
         gallerySimpleLightbox.refresh();
         pageNumber++;
+        uniqueImages.forEach(image => loadedImageIds.add(image.id));
       }
     } catch (error) {
       Notiflix.Notify.failure('Something went wrong :( Try again.');
@@ -73,13 +75,13 @@ function renderImageList(images) {
            <b>Likes</b> <span class="info-item-api"> ${image.likes} </span>
          </p>
          <p class="info-item">
-           <b>Views</b> <span class="info-item-api">${image.views}</span>  
+           <b>Views</b> <span class="info-item-api">${image.views}</span>
          </p>
          <p class="info-item">
-           <b>Comments</b> <span class="info-item-api">${image.comments}</span>  
+           <b>Comments</b> <span class="info-item-api">${image.comments}</span>
          </p>
          <p class="info-item">
-           <b>Downloads</b> <span class="info-item-api">${image.downloads}</span> 
+           <b>Downloads</b> <span class="info-item-api">${image.downloads}</span>
          </p>
       </div>
       </div>`;
@@ -91,5 +93,4 @@ function renderImageList(images) {
 function cleanGallery() {
   gallery.innerHTML = '';
   pageNumber = 1;
-  btnLoadMore.style.display = 'none';
 }
